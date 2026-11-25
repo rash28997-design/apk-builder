@@ -45,7 +45,7 @@ jobs:
             ~/.npm
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-android-fast-v1
+          key: ${{ runner.os }}-android-fast-v2
 
       - name: Build Native WebView & Custom Logo Android App
         env:
@@ -74,6 +74,11 @@ jobs:
               webDir: "www",
               android: {
                 allowMixedContent: true
+              },
+              plugins: {
+                SplashScreen: {
+                  launchShowDuration: 0
+                }
               }
             };
 
@@ -83,7 +88,7 @@ jobs:
                 cleartext: true,
                 androidScheme: "https"
               };
-              fs.writeFileSync("www/index.html", "<!DOCTYPE html><html><body style=\"background:#000;\"></body></html>");
+              fs.writeFileSync("www/index.html", "<!DOCTYPE html><html><body style=\"background:#ffffff;margin:0;\"></body></html>");
             } else {
               fs.writeFileSync("www/index.html", data);
             }
@@ -97,8 +102,7 @@ jobs:
             cp ../custom_icon.png assets/icon-only.png
             cp ../custom_icon.png assets/icon-foreground.png
             cp ../custom_icon.png assets/icon-background.png
-            cp ../custom_icon.png assets/splash.png
-            npx capacitor-assets generate --android
+            npx capacitor-assets generate --android --iconBackgroundColor '#ffffff'
           fi
           
           npx cap sync android
