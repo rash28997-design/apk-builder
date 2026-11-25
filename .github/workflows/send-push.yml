@@ -12,14 +12,14 @@ on:
       body:
         description: 'Notification Description'
         required: true
-      service_account:
-        description: 'Firebase Service Account JSON'
-        required: true
 
 jobs:
   send_push:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Set up Node.js 20
         uses: actions/setup-node@v4
         with:
@@ -27,7 +27,6 @@ jobs:
 
       - name: Send FCM Notification via Google Auth
         env:
-          SERVICE_ACCOUNT_JSON: ${{ github.event.inputs.service_account }}
           PACKAGE_NAME: ${{ github.event.inputs.package_name }}
           NOTIF_TITLE: ${{ github.event.inputs.title }}
           NOTIF_BODY: ${{ github.event.inputs.body }}
@@ -35,14 +34,11 @@ jobs:
           npm init -y
           npm install google-auth-library --no-audit --no-fund
           node -e '
+            const fs = require("fs");
             const { GoogleAuth } = require("google-auth-library");
             async function send() {
               try {
-                let raw = process.env.SERVICE_ACCOUNT_JSON.trim();
-                const credentials = JSON.parse(raw);
-                if (credentials.private_key) {
-                  credentials.private_key = credentials.private_key.replace(/\\n/g, "\n");
-                }
+                const credentials = JSON.parse(fs.readFileSync("firebase-key.json", "utf8"));
                 const auth = new GoogleAuth({
                   credentials,
                   scopes: ["https://googleapis.com"]
