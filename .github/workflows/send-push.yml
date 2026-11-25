@@ -1,0 +1,69 @@
+name: Send Firebase Push Notification
+
+on:
+  workflow_dispatch:
+    inputs:
+      package_name:
+        description: 'Target App Package Name'
+        required: true
+      title:
+        description: 'Notification Title'
+        required: true
+      body:
+        description: 'Notification Description'
+        required: true
+      service_account:
+        description: 'Firebase Service Account JSON'
+        required: true
+
+jobs:
+  send_push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send FCM Notification via Google Auth
+        env:
+          SERVICE_ACCOUNT_JSON: ${{ github.event.inputs.service_account }}
+          PACKAGE_NAME: ${{ github.event.inputs.package_name }}
+          NOTIF_TITLE: ${{ github.event.inputs.title }}
+          NOTIF_BODY: ${{ github.event.inputs.body }}
+        run: |
+          npm init -y
+          npm install google-auth-library --no-audit --no-fund
+          node -e '
+            const { GoogleAuth } = require("google-auth-library");
+            async function send() {
+              const credentials = JSON.parse(process.env.SERVICE_ACCOUNT_JSON);
+              const auth = new GoogleAuth({
+                credentials,
+                scopes: ["https://googleapis.com"]
+              });
+              const client = await auth.getClient();
+              const tokenResponse = await client.getAccessToken();
+              const accessToken = tokenResponse.token;
+              
+              const topicName = process.env.PACKAGE_NAME.trim().toLowerCase().replace(/[^a-z0-9.]/g, "").replace(/[^a-zA-Z0-9_-]/g, "_");
+              const projectId = credentials.project_id;
+              
+              const res = await fetch(`https://googleapis.com{projectId}/messages:send`, {
+                method: "POST",
+                headers: {
+                  "Authorization": `Bearer ${accessToken}`,
+                  "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                  message: {
+                    topic: topicName,
+                    notification: {
+                      title: process.env.NOTIF_TITLE,
+                      body: process.env.NOTIF_BODY
+                    }
+                  }
+                })
+              });
+              const data = await res.json();
+              console.log("FCM Response:", data);
+              if (!res.ok) process.exit(1);
+            }
+            send();
+          '
+          
