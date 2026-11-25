@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "737897932215",
+    "project_id": "apk-builder-38d38",
+    "storage_bucket": "apk-builder-38d38.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:737897932215:android:6d34daf64ddeb65b25f432",
+        "android_client_info": {
+          "package_name": "com.builder.universal"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBH0P6XcwcItZPELO9PE_rftk3FsLEg3Xg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
