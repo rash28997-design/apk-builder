@@ -38,6 +38,15 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Cache Gradle & NPM for Ultra-Fast Build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-android-fast-v1
+
       - name: Build Native WebView & Custom Logo Android App
         env:
           APP_NAME: ${{ github.event.inputs.app_name }}
@@ -49,7 +58,7 @@ jobs:
           mkdir -p app_project/www app_project/assets
           cd app_project
           npm init -y
-          npm install @capacitor/core@6.1.0 @capacitor/cli@6.1.0 @capacitor/android@6.1.0 @capacitor/assets
+          npm install @capacitor/core@6.1.0 @capacitor/cli@6.1.0 @capacitor/android@6.1.0 @capacitor/assets --prefer-offline --no-audit --no-fund
           
           node -e '
             const fs = require("fs");
@@ -94,15 +103,16 @@ jobs:
           
           npx cap sync android
 
-      - name: Build Real Android APK
+      - name: Build Real Android APK (Fast Mode)
         run: |
           cd app_project/android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --build-cache --parallel -Dorg.gradle.jvmargs="-Xmx4g"
 
       - name: Upload Generated APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.event.inputs.app_name }}-APK
           path: app_project/android/app/build/outputs/apk/debug/app-debug.apk
+          compression-level: 0
           
