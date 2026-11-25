@@ -20,6 +20,11 @@ jobs:
   send_push:
     runs-on: ubuntu-latest
     steps:
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Send FCM Notification via Google Auth
         env:
           SERVICE_ACCOUNT_JSON: ${{ github.event.inputs.service_account }}
@@ -32,37 +37,47 @@ jobs:
           node -e '
             const { GoogleAuth } = require("google-auth-library");
             async function send() {
-              const credentials = JSON.parse(process.env.SERVICE_ACCOUNT_JSON);
-              const auth = new GoogleAuth({
-                credentials,
-                scopes: ["https://googleapis.com"]
-              });
-              const client = await auth.getClient();
-              const tokenResponse = await client.getAccessToken();
-              const accessToken = tokenResponse.token;
-              
-              const topicName = process.env.PACKAGE_NAME.trim().toLowerCase().replace(/[^a-z0-9.]/g, "").replace(/[^a-zA-Z0-9_-]/g, "_");
-              const projectId = credentials.project_id;
-              
-              const res = await fetch(`https://googleapis.com{projectId}/messages:send`, {
-                method: "POST",
-                headers: {
-                  "Authorization": `Bearer ${accessToken}`,
-                  "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                  message: {
-                    topic: topicName,
-                    notification: {
-                      title: process.env.NOTIF_TITLE,
-                      body: process.env.NOTIF_BODY
+              try {
+                let raw = process.env.SERVICE_ACCOUNT_JSON.trim();
+                const credentials = JSON.parse(raw);
+                if (credentials.private_key) {
+                  credentials.private_key = credentials.private_key.replace(/\\n/g, "\n");
+                }
+                const auth = new GoogleAuth({
+                  credentials,
+                  scopes: ["https://googleapis.com"]
+                });
+                const client = await auth.getClient();
+                const tokenResponse = await client.getAccessToken();
+                const accessToken = tokenResponse.token;
+                
+                const topicName = process.env.PACKAGE_NAME.trim().toLowerCase().replace(/[^a-z0-9.]/g, "").replace(/[^a-zA-Z0-9_-]/g, "_");
+                const projectId = credentials.project_id;
+                console.log("Sending to Project:", projectId, "Topic:", topicName);
+                
+                const res = await fetch(`https://googleapis.com{projectId}/messages:send`, {
+                  method: "POST",
+                  headers: {
+                    "Authorization": `Bearer ${accessToken}`,
+                    "Content-Type": "application/json"
+                  },
+                  body: JSON.stringify({
+                    message: {
+                      topic: topicName,
+                      notification: {
+                        title: process.env.NOTIF_TITLE,
+                        body: process.env.NOTIF_BODY
+                      }
                     }
-                  }
-                })
-              });
-              const data = await res.json();
-              console.log("FCM Response:", data);
-              if (!res.ok) process.exit(1);
+                  })
+                });
+                const data = await res.json();
+                console.log("FCM Response:", JSON.stringify(data));
+                if (!res.ok) process.exit(1);
+              } catch (err) {
+                console.error("Error details:", err);
+                process.exit(1);
+              }
             }
             send();
           '
