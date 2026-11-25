@@ -19,8 +19,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -75,14 +73,9 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      - name: Publish Direct APK Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          APP_NAME: ${{ github.event.inputs.app_name }}
-        run: |
-          TAG="build-${{ github.run_number }}"
-          SAFE_NAME=$(echo "$APP_NAME" | tr -cd '[:alnum:]_-')
-          [ -z "$SAFE_NAME" ] && SAFE_NAME="MyApp"
-          cp app_project/android/app/build/outputs/apk/debug/app-debug.apk "${SAFE_NAME}.apk"
-          gh release create "$TAG" "${SAFE_NAME}.apk" --title "$APP_NAME APK" --notes "Built automatically"
+      - name: Upload Generated APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.event.inputs.app_name }}-APK
+          path: app_project/android/app/build/outputs/apk/debug/app-debug.apk
           
