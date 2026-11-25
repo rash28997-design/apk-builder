@@ -23,6 +23,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -45,9 +47,9 @@ jobs:
             ~/.npm
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-android-fast-v2
+          key: ${{ runner.os }}-android-fast-v3
 
-      - name: Build Native WebView & Custom Logo Android App
+      - name: Build Native WebView & Dark Grey Launch Android App
         env:
           APP_NAME: ${{ github.event.inputs.app_name }}
           PACKAGE_NAME: ${{ github.event.inputs.package_name }}
@@ -72,8 +74,10 @@ jobs:
               appId: pkgName,
               appName: appName,
               webDir: "www",
+              backgroundColor: "#1E1E1E",
               android: {
-                allowMixedContent: true
+                allowMixedContent: true,
+                backgroundColor: "#1E1E1E"
               },
               plugins: {
                 SplashScreen: {
@@ -88,7 +92,7 @@ jobs:
                 cleartext: true,
                 androidScheme: "https"
               };
-              fs.writeFileSync("www/index.html", "<!DOCTYPE html><html><body style=\"background:#ffffff;margin:0;\"></body></html>");
+              fs.writeFileSync("www/index.html", "<!DOCTYPE html><html><body style=\"background:#1E1E1E;margin:0;\"></body></html>");
             } else {
               fs.writeFileSync("www/index.html", data);
             }
@@ -102,8 +106,32 @@ jobs:
             cp ../custom_icon.png assets/icon-only.png
             cp ../custom_icon.png assets/icon-foreground.png
             cp ../custom_icon.png assets/icon-background.png
-            npx capacitor-assets generate --android --iconBackgroundColor '#ffffff'
+            npx capacitor-assets generate --android --iconBackgroundColor '#1E1E1E'
           fi
+
+          # Remove splash screen logo completely & set Dark Grey (#1E1E1E) background
+          find android/app/src/main/res -name "*splash*" -type f -delete
+          cat << 'EOF' > android/app/src/main/res/values/styles.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <style name="AppTheme" parent="Theme.AppCompat.NoActionBar">
+                  <item name="colorPrimary">#1E1E1E</item>
+                  <item name="colorPrimaryDark">#1E1E1E</item>
+                  <item name="colorAccent">#1E1E1E</item>
+                  <item name="android:windowBackground">#1E1E1E</item>
+              </style>
+              <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.NoActionBar">
+                  <item name="windowActionBar">false</item>
+                  <item name="windowNoTitle">true</item>
+                  <item name="android:windowBackground">#1E1E1E</item>
+              </style>
+              <style name="AppTheme.NoActionBarLaunch" parent="Theme.AppCompat.NoActionBar">
+                  <item name="android:windowBackground">#1E1E1E</item>
+                  <item name="android:windowSplashScreenBackground">#1E1E1E</item>
+                  <item name="android:windowSplashScreenAnimatedIcon">@android:color/transparent</item>
+              </style>
+          </resources>
+          EOF
           
           npx cap sync android
 
@@ -112,6 +140,17 @@ jobs:
           cd app_project/android
           chmod +x gradlew
           ./gradlew assembleDebug --build-cache --parallel -Dorg.gradle.jvmargs="-Xmx4g"
+
+      - name: Publish Direct HTTPS APK Link & Artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APP_NAME: ${{ github.event.inputs.app_name }}
+        run: |
+          TAG="apk-${{ github.run_id }}"
+          SAFE_NAME=$(echo "$APP_NAME" | tr -cd '[:alnum:]_-')
+          [ -z "$SAFE_NAME" ] && SAFE_NAME="MyApp"
+          cp app_project/android/app/build/outputs/apk/debug/app-debug.apk "${SAFE_NAME}.apk"
+          gh release create "$TAG" "${SAFE_NAME}.apk" --title "$APP_NAME" --notes "Direct APK"
 
       - name: Upload Generated APK Artifact
         uses: actions/upload-artifact@v4
