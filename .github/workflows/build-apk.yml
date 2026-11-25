@@ -1,0 +1,60 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_name:
+        description: 'App Name'
+        required: true
+        default: 'MyApp'
+      package_name:
+        description: 'Package Name'
+        required: true
+        default: 'com.builder.myapp'
+      app_url:
+        description: 'Website URL or HTML data'
+        required: true
+        default: 'https://google.com'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js & Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Generate Dynamic Android WebView Project
+        run: |
+          npm init -y
+          npm install @capacitor/core @capacitor/cli @capacitor/android
+          npx cap init "${{ github.event.inputs.app_name }}" "${{ github.event.inputs.package_name }}" --web-dir www
+          mkdir -p www
+          if [[ "${{ github.event.inputs.app_url }}" == http* ]]; then
+            echo "<script>window.location.href='${{ github.event.inputs.app_url }}';</script>" > www/index.html
+          else
+            echo "${{ github.event.inputs.app_url }}" > www/index.html
+          fi
+          npx cap add android
+          npx cap sync android
+
+      - name: Build Debug APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload Generated APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.event.inputs.app_name }}-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          
